@@ -61,7 +61,7 @@ It demonstrates skills in:
 3. Run the Jupyter Notebook or Python script
 
 ## Author
-Your Name Here
+Nitika Pandey
 
 ## Note
 This is a beginner-friendly data analytics project created as part of a learning journey in Data Analytics (IBM Coursera Certification).
