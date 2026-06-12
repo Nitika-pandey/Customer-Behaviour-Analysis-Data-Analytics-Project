@@ -1,92 +1,144 @@
-#first upload data set using -
-from google.colab import files
-uploaded = files.upload()
-
-#dataset - Bank churn from kaggle 
-
-
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import ipywidgets as widgets
-from IPython.display import display, clear_output
-
-df = pd.read_csv("archive (1).csv")
-df.columns = df.columns.str.strip()
-
-df['Spending_Segment'] = pd.qcut(df['Total_Spend'], 3, labels=['Low', 'Medium', 'High'])
+from google.colab import files
 
 sns.set_style("whitegrid")
 
-coordinates = widgets.Dropdown(
-    options=[
-        "Select Coordinates",
-        "Account Type vs Total Spend",
-        "Logins vs Total Spend",
-        "Transactions vs Total Spend",
-        "Account Balance vs Total Spend",
-        "Spending Segment vs Total Spend"
-    ],
-    value="Select Coordinates",
-    description="Data:"
-)
+print("📂 Upload CSV file")
+uploaded = files.upload()
 
-graph_type = widgets.Dropdown(
-    options=["Scatter", "Bar", "Histogram", "Boxplot", "Countplot"],
-    value="Scatter",
-    description="Graph:"
-)
+file_name = list(uploaded.keys())[0]
+df = pd.read_csv(file_name)
+df.columns = df.columns.str.strip()
 
-color_picker = widgets.Dropdown(
-    options=["blue", "green", "red", "purple", "orange", "black", "pink", "brown"],
-    value="blue",
-    description="Color:"
-)
+print(f"\n📊 DATA LOADED | Rows: {len(df)} | Columns: {len(df.columns)}")
+print("⚠ Using first 2000 rows for analysis")
 
-size_picker = widgets.Dropdown(
-    options=["Small", "Medium", "Large"],
-    value="Medium",
-    description="Size:"
-)
+if len(df) > 2000:
+    df = df.head(2000)
 
-button = widgets.Button(description="Generate Graph", button_style="success")
-output = widgets.Output()
+numeric_cols = df.select_dtypes(include="number").columns.tolist()
 
-def plot(btn):
-    with output:
-        clear_output()
+ignore = [
+    "Loan_Account_No", "Debit_Card_No", "Credit_Card_No",
+    "Demat_Account_No", "Current_Account_No", "Savings_Account_No"
+]
 
-        if coordinates.value == "Select Coordinates":
-            print("Select data relationship")
-            return
+numeric_cols = [c for c in numeric_cols if c not in ignore]
 
-        size_map = {"Small": (6,4), "Medium": (8,5), "Large": (12,7)}
-        plt.figure(figsize=size_map[size_picker.value])
+if len(numeric_cols) == 0:
+    raise SystemExit("No valid numeric business columns found")
 
-        if coordinates.value == "Account Type vs Total Spend":
-            x, y = "Account_Type", "Total_Spend"
-        elif coordinates.value == "Logins vs Total Spend":
-            x, y = "Logins", "Total_Spend"
-        elif coordinates.value == "Transactions vs Total Spend":
-            x, y = "Transactions", "Total_Spend"
-        elif coordinates.value == "Account Balance vs Total Spend":
-            x, y = "Account_Balance", "Total_Spend"
-        elif coordinates.value == "Spending Segment vs Total Spend":
-            x, y = "Spending_Segment", "Total_Spend"
+target = "Total_Spend" if "Total_Spend" in df.columns else numeric_cols[0]
 
-        if graph_type.value == "Scatter":
-            sns.scatterplot(x=df[x], y=df[y], color=color_picker.value, alpha=0.6)
-        elif graph_type.value == "Bar":
-            sns.barplot(x=df[x], y=df[y], color=color_picker.value, ci=None)
-        elif graph_type.value == "Histogram":
-            sns.histplot(df[y], kde=True, color=color_picker.value)
-        elif graph_type.value == "Boxplot":
-            sns.boxplot(x=df[x], color=color_picker.value)
-        elif graph_type.value == "Countplot":
-            sns.countplot(x=df[x], color=color_picker.value)
+df["Segment"] = pd.qcut(df[target], 3, labels=["Low", "Medium", "High"])
 
-        plt.show()
+print("\n" + "="*50)
+print("👥 CUSTOMER SEGMENTATION")
+print("="*50)
+print(df["Segment"].value_counts())
 
-button.on_click(plot)
+print("\n" + "="*50)
+print("📊 BUSINESS KPI DASHBOARD")
+print("="*50)
 
-display(coordinates, graph_type, color_picker, size_picker, button, output)
+for col in numeric_cols:
+    print(f"• {col}: {df[col].mean():.2f}")
+
+print("\n" + "="*50)
+print("🧠 BEHAVIOURAL INSIGHTS")
+print("="*50)
+
+insights = []
+
+if "Total_Spend" in df.columns:
+    high = (df["Total_Spend"] > df["Total_Spend"].quantile(0.8)).mean() * 100
+    insights.append(f"{high:.1f}% users are high-value customers")
+
+if "Logins" in df.columns:
+    low_eng = (df["Logins"] < df["Logins"].median()).mean() * 100
+    insights.append(f"{low_eng:.1f}% users show low engagement risk")
+
+if "Transactions" in df.columns:
+    insights.append(f"Average transactions per user: {df['Transactions'].mean():.1f}")
+
+if "Complaints" in df.columns:
+    complaint_rate = df["Complaints"].mean() * 100
+    if complaint_rate > 5:
+        insights.append(f"Complaint rate: {complaint_rate:.2f}% (needs monitoring)")
+    else:
+        insights.append(f"Complaint rate: {complaint_rate:.2f}% (under control)")
+
+if "Logins" in df.columns and "Total_Spend" in df.columns:
+    corr = df["Logins"].corr(df["Total_Spend"])
+    if corr > 0.5:
+        insights.append("Strong relationship: engagement drives revenue")
+    elif corr > 0:
+        insights.append("Moderate relationship between engagement and revenue")
+    else:
+        insights.append("Weak relationship between engagement and revenue")
+
+for i, ins in enumerate(insights, 1):
+    print(f"{i}. {ins}")
+
+print("\n" + "="*50)
+print("📊 GRAPH GENERATOR")
+print("="*50)
+
+print("\nAvailable columns:")
+for i, col in enumerate(numeric_cols, 1):
+    print(f"{i} - {col}")
+
+idx = int(input("\nSelect column number: ")) - 1
+x = numeric_cols[idx]
+
+print("\nSelect graph type:")
+print("1 - Histogram")
+print("2 - Box Plot")
+
+g = input("Choice: ").strip()
+
+print("\nSelect color:")
+print("1 - Blue")
+print("2 - Green")
+print("3 - Red")
+print("4 - Purple")
+print("5 - Orange")
+
+color_map = {
+    "1": "blue",
+    "2": "green",
+    "3": "red",
+    "4": "purple",
+    "5": "orange"
+}
+
+color = color_map.get(input("Choice: "), "blue")
+
+print("\nSelect size:")
+print("1 - Small")
+print("2 - Medium")
+print("3 - Large")
+
+size_map = {
+    "1": (6, 4),
+    "2": (8, 5),
+    "3": (12, 7)
+}
+
+figsize = size_map.get(input("Choice: "), (8, 5))
+
+plt.figure(figsize=figsize)
+
+if g == "1":
+    sns.histplot(df[x], kde=True, color=color)
+elif g == "2":
+    sns.boxplot(y=df[x], color=color)
+else:
+    sns.histplot(df[x], kde=True, color=color)
+
+plt.tight_layout()
+plt.show()
+
+print("\n✅ Analysis Complete")
